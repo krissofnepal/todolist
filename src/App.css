@@ -314,6 +314,14 @@ body {
   margin-top: 6px;
 }
 
+.todo-complete-info {
+  font-size: 0.74rem;
+  color: #3a3f55;
+  margin-top: 6px;
+  display: block;
+  font-weight: 600;
+}
+
 .edit-input {
   flex: 1;
   padding: 8px 12px;

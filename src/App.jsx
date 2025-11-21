@@ -40,6 +40,8 @@ function App() {
       frequency,
       repeating,
       createdAt: new Date().toLocaleString(),
+      history: [],
+      lastCompletedAt: null,
     }
 
     setTodos([newTodo, ...todos])
@@ -53,9 +55,17 @@ function App() {
   }
 
   const toggleComplete = (id) => {
-    setTodos(todos.map(todo =>
-      todo.id === id ? { ...todo, completed: !todo.completed } : todo
-    ))
+    setTodos(todos.map(todo => {
+      if (todo.id !== id) return todo
+      const now = new Date().toLocaleString()
+      const completed = !todo.completed
+      if (completed) {
+        const history = Array.isArray(todo.history) ? [...todo.history, now] : [now]
+        return { ...todo, completed: true, history, lastCompletedAt: now }
+      }
+      // if unchecking, keep history but flip completed flag
+      return { ...todo, completed: false }
+    }))
   }
 
   const startEdit = (id, text, freq, isRepeating) => {
@@ -277,6 +287,9 @@ function App() {
                         {todo.repeating ? <span className="repeat-badge">Repeats</span> : null}
                       </div>
                       <span className="todo-time">{todo.createdAt}</span>
+                      {todo.history && todo.history.length > 0 ? (
+                        <span className="todo-complete-info">Completed {todo.history.length} time{todo.history.length>1? 's':''} • {todo.lastCompletedAt}</span>
+                      ) : null}
                     </div>
                   )}
                 </div>
