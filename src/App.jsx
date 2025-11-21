@@ -1,12 +1,20 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
+const FREQUENCIES = ['daily', 'weekly', 'monthly', 'quarterly', 'yearly']
+
 function App() {
   const [todos, setTodos] = useState([])
   const [input, setInput] = useState('')
+  const [frequency, setFrequency] = useState('daily')
+  const [repeating, setRepeating] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [editText, setEditText] = useState('')
+  const [editFrequency, setEditFrequency] = useState('daily')
+  const [editRepeating, setEditRepeating] = useState(false)
   const [filter, setFilter] = useState('all')
+  const [freqFilter, setFreqFilter] = useState('all')
+  const [repeatFilter, setRepeatFilter] = useState('all')
 
   // Load todos from localStorage on mount
   useEffect(() => {
@@ -29,11 +37,15 @@ function App() {
       id: Date.now(),
       text: input,
       completed: false,
-      createdAt: new Date().toLocaleString()
+      frequency,
+      repeating,
+      createdAt: new Date().toLocaleString(),
     }
 
     setTodos([newTodo, ...todos])
     setInput('')
+    setFrequency('daily')
+    setRepeating(false)
   }
 
   const deleteTodo = (id) => {
@@ -46,9 +58,11 @@ function App() {
     ))
   }
 
-  const startEdit = (id, text) => {
+  const startEdit = (id, text, freq, isRepeating) => {
     setEditingId(id)
     setEditText(text)
+    setEditFrequency(freq || 'daily')
+    setEditRepeating(Boolean(isRepeating))
   }
 
   const saveEdit = (id) => {
@@ -57,26 +71,39 @@ function App() {
       return
     }
     setTodos(todos.map(todo =>
-      todo.id === id ? { ...todo, text: editText } : todo
+      todo.id === id ? { ...todo, text: editText, frequency: editFrequency, repeating: editRepeating } : todo
     ))
     setEditingId(null)
     setEditText('')
+    setEditRepeating(false)
   }
 
   const cancelEdit = () => {
     setEditingId(null)
     setEditText('')
+    setEditFrequency('daily')
   }
 
-  // Filter todos based on selected filter
+  // Filter todos based on selected completion, frequency and repeating filters
   const filteredTodos = todos.filter(todo => {
-    if (filter === 'active') return !todo.completed
-    if (filter === 'completed') return todo.completed
+    if (filter === 'active' && todo.completed) return false
+    if (filter === 'completed' && !todo.completed) return false
+    if (freqFilter !== 'all' && todo.frequency !== freqFilter) return false
+    if (repeatFilter === 'repeating' && !todo.repeating) return false
+    if (repeatFilter === 'non-repeating' && todo.repeating) return false
     return true
   })
 
   const completedCount = todos.filter(todo => todo.completed).length
   const activeCount = todos.length - completedCount
+
+  // counts per frequency
+  const freqCounts = FREQUENCIES.reduce((acc, f) => {
+    acc[f] = todos.filter(t => t.frequency === f).length
+    return acc
+  }, {})
+
+  const repeatingCount = todos.filter(t => t.repeating).length
 
   return (
     <div className="app-container">
@@ -95,6 +122,24 @@ function App() {
             className="todo-input"
             autoFocus
           />
+          <select
+            value={frequency}
+            onChange={(e) => setFrequency(e.target.value)}
+            className="freq-select"
+            aria-label="Select frequency"
+          >
+            {FREQUENCIES.map(f => (
+              <option key={f} value={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</option>
+            ))}
+          </select>
+          <label className="repeat-label">
+            <input
+              type="checkbox"
+              checked={repeating}
+              onChange={(e) => setRepeating(e.target.checked)}
+            />
+            <span>Repeats</span>
+          </label>
           <button type="submit" className="add-btn">Add</button>
         </form>
 
@@ -113,25 +158,68 @@ function App() {
           </div>
         </div>
 
-        <div className="filter-buttons">
-          <button
-            className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
-            onClick={() => setFilter('all')}
-          >
-            All
-          </button>
-          <button
-            className={`filter-btn ${filter === 'active' ? 'active' : ''}`}
-            onClick={() => setFilter('active')}
-          >
-            Active
-          </button>
-          <button
-            className={`filter-btn ${filter === 'completed' ? 'active' : ''}`}
-            onClick={() => setFilter('completed')}
-          >
-            Completed
-          </button>
+        <div className="filters-row">
+          <div className="filter-buttons">
+            <button
+              className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
+              onClick={() => setFilter('all')}
+            >
+              All
+            </button>
+            <button
+              className={`filter-btn ${filter === 'active' ? 'active' : ''}`}
+              onClick={() => setFilter('active')}
+            >
+              Active
+            </button>
+            <button
+              className={`filter-btn ${filter === 'completed' ? 'active' : ''}`}
+              onClick={() => setFilter('completed')}
+            >
+              Completed
+            </button>
+          </div>
+
+          <div className="freq-filters">
+            <button
+              className={`filter-btn ${freqFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setFreqFilter('all')}
+            >
+              All
+            </button>
+            {FREQUENCIES.map(f => (
+              <button
+                key={f}
+                className={`filter-btn ${freqFilter === f ? 'active' : ''}`}
+                onClick={() => setFreqFilter(f)}
+                title={`${f.charAt(0).toUpperCase() + f.slice(1)} (${freqCounts[f] || 0})`}
+              >
+                {f.charAt(0).toUpperCase() + f.slice(1)}
+              </button>
+            ))}
+            <div className="repeat-filters">
+              <button
+                className={`filter-btn ${repeatFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setRepeatFilter('all')}
+              >
+                All
+              </button>
+              <button
+                className={`filter-btn ${repeatFilter === 'repeating' ? 'active' : ''}`}
+                onClick={() => setRepeatFilter('repeating')}
+                title={`Repeating (${repeatingCount})`}
+              >
+                Repeating
+              </button>
+              <button
+                className={`filter-btn ${repeatFilter === 'non-repeating' ? 'active' : ''}`}
+                onClick={() => setRepeatFilter('non-repeating')}
+                title={`Non-repeating (${todos.length - repeatingCount})`}
+              >
+                Non-repeating
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="todos-list">
@@ -140,7 +228,7 @@ function App() {
               <p>
                 {todos.length === 0
                   ? '✨ No tasks yet. Add one to get started!'
-                  : `📭 No ${filter} tasks`}
+                  : `📭 No matching tasks`}
               </p>
             </div>
           ) : (
@@ -154,16 +242,40 @@ function App() {
                     className="todo-checkbox"
                   />
                   {editingId === todo.id ? (
-                    <input
-                      type="text"
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                      className="edit-input"
-                      autoFocus
-                    />
+                    <div className="edit-row">
+                      <input
+                        type="text"
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        className="edit-input"
+                        autoFocus
+                      />
+                      <select
+                        value={editFrequency}
+                        onChange={(e) => setEditFrequency(e.target.value)}
+                        className="freq-select"
+                        aria-label="Edit frequency"
+                      >
+                        {FREQUENCIES.map(f => (
+                          <option key={f} value={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</option>
+                        ))}
+                      </select>
+                      <label className="repeat-label edit-repeat">
+                        <input
+                          type="checkbox"
+                          checked={editRepeating}
+                          onChange={(e) => setEditRepeating(e.target.checked)}
+                        />
+                        <span>Repeats</span>
+                      </label>
+                    </div>
                   ) : (
                     <div className="todo-text-wrapper">
-                      <span className="todo-text">{todo.text}</span>
+                      <div className="text-and-badge">
+                        <span className="todo-text">{todo.text}</span>
+                        <span className={`freq-badge freq-${todo.frequency}`}>{todo.frequency.charAt(0).toUpperCase() + todo.frequency.slice(1)}</span>
+                        {todo.repeating ? <span className="repeat-badge">Repeats</span> : null}
+                      </div>
                       <span className="todo-time">{todo.createdAt}</span>
                     </div>
                   )}
@@ -189,7 +301,7 @@ function App() {
                   ) : (
                     <>
                       <button
-                        onClick={() => startEdit(todo.id, todo.text)}
+                        onClick={() => startEdit(todo.id, todo.text, todo.frequency)}
                         className="btn-edit"
                         title="Edit"
                       >
@@ -211,7 +323,7 @@ function App() {
         </div>
 
         <div className="footer">
-          <p>💡 Tip: Your tasks are saved automatically!</p>
+          <p>💡 Tip: Use frequency filters to focus on Daily, Weekly, Monthly, Quarterly or Yearly tasks.</p>
         </div>
       </div>
     </div>
